@@ -4,6 +4,7 @@ from typing import Optional, List
 import strawberry
 from strawberry.flask.views import GraphQLView
 
+
 DATABASE_URL = "sqlite:///./podcast.db"
 engine = create_engine(DATABASE_URL, echo=True)
 
@@ -93,12 +94,12 @@ class Mutation:
 
 
     @strawberry.mutation
-    def mark_episod_played(self, episod_id: int, played: bool = True) -> EpisodType:
+    def mark_episod_played(self, episod_id: int) -> EpisodType:
         with Session(engine) as session:
             episod = session.get(Episod, episod_id)
             if not episod:
                 raise ValueError("Episode not found")
-            episod.isPlayed = played
+            episod.isPlayed = True
             session.add(episod)
             session.commit()
             session.refresh(episod)
@@ -108,6 +109,29 @@ class Mutation:
                 podcast_id=episod.podcast_id,
                 isPlayed=episod.isPlayed
             )
+    
+
+    @strawberry.mutation
+    def remove_podcast(self, podcast_id: int) -> PodcastType:
+        with Session(engine) as session:
+            podcast = session.get(Podcast, podcast_id)
+            if not podcast:
+                raise Exception("Podcast not found")
+            deleted_podcast = PodcastType(id=podcast.id, title=podcast.title, episods_list=podcast.episods_list)
+            session.delete(podcast)
+            session.commit()
+            return deleted_podcast
+
+    @strawberry.mutation
+    def remove_episode(self, episode_id: int) -> EpisodType:
+        with Session(engine) as session:
+            eposid = session.get(Episod, episode_id)
+            if not eposid:
+                raise Exception("Eposide not found")
+            deleted_eposide = EpisodType(id=eposid.id, title=eposid.title, isPlayed=eposid.isPlayed, podcast_id=eposid.podcast_id)
+            session.delete(eposid)
+            session.commit()
+            return deleted_eposide
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
 app = Flask(__name__)
