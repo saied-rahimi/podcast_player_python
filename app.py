@@ -11,19 +11,19 @@ engine = create_engine(DATABASE_URL, echo=True)
 class Podcast(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
-    episods_list: List["Episod"] = Relationship(back_populates="podcast")
+    episode_list: List["Episode"] = Relationship(back_populates="podcast")
 
-class Episod(SQLModel, table=True):
+class Episode(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     podcast_id: int = Field(foreign_key="podcast.id")
-    podcast: Optional[Podcast] = Relationship(back_populates="episods_list")
+    podcast: Optional[Podcast] = Relationship(back_populates="episode_list")
     isPlayed: Optional[bool] = Field(default=False)
 
 SQLModel.metadata.create_all(engine)
 
 @strawberry.type
-class EpisodType:
+class EpisodeType:
     id: int
     title: str
     podcast_id: int
@@ -33,7 +33,7 @@ class EpisodType:
 class PodcastType:
     id: int
     title: str
-    episods_list: List[EpisodType]
+    episode_list: List[EpisodeType]
 
 @strawberry.type
 class Query:
@@ -45,9 +45,9 @@ class Query:
                 PodcastType(
                     id=p.id,
                     title=p.title,
-                    episods_list=[
-                        EpisodType(id=e.id, title=e.title, podcast_id=e.podcast_id,isPlayed=e.isPlayed)
-                        for e in p.episods_list
+                    episode_list=[
+                        EpisodeType(id=e.id, title=e.title, podcast_id=e.podcast_id,isPlayed=e.isPlayed)
+                        for e in p.episode_list
                     ]
                 )
                 for p in podcasts
@@ -55,20 +55,20 @@ class Query:
 
 
     @strawberry.field
-    def get_episods(self) -> List[EpisodType]:
+    def get_episode(self) -> List[EpisodeType]:
         with Session(engine) as session:
-            episods = session.exec(select(Episod)).all()
+            episode = session.exec(select(Episode)).all()
             return [
-                EpisodType(id=e.id, title=e.title, podcast_id=e.podcast_id, isPlayed=e.isPlayed)
-                for e in episods
+                EpisodeType(id=e.id, title=e.title, podcast_id=e.podcast_id, isPlayed=e.isPlayed)
+                for e in episode
             ]
     @strawberry.field
-    def get_played_episods(self) -> List[EpisodType]:
+    def get_played_episode(self) -> List[EpisodeType]:
         with Session(engine) as session:
-            episods = session.exec(select(Episod)).all()
+            episode = session.exec(select(Episode)).all()
             return [
-                EpisodType(id=e.id, title=e.title, podcast_id=e.podcast_id, isPlayed=e.isPlayed)
-                for e in episods if e.isPlayed
+                EpisodeType(id=e.id, title=e.title, podcast_id=e.podcast_id, isPlayed=e.isPlayed)
+                for e in episode if e.isPlayed
             ]
 
 @strawberry.type
@@ -80,34 +80,34 @@ class Mutation:
             session.add(new_podcast)
             session.commit()
             session.refresh(new_podcast)
-            return PodcastType(id=new_podcast.id, title=new_podcast.title, episods_list=[])
+            return PodcastType(id=new_podcast.id, title=new_podcast.title, episode_list=[])
 
     @strawberry.mutation
-    def create_episod(self, title: str, podcast_id: int) -> EpisodType:
+    def create_episode(self, title: str, podcast_id: int) -> EpisodeType:
         with Session(engine) as session:
-            new_episod = Episod(title=title, podcast_id=podcast_id)
-            session.add(new_episod)
+            new_episode = Episode(title=title, podcast_id=podcast_id)
+            session.add(new_episode)
             session.commit()
-            session.refresh(new_episod)
-            return EpisodType(id=new_episod.id, title=new_episod.title, podcast_id=new_episod.podcast_id, isPlayed=False)
+            session.refresh(new_episode)
+            return EpisodeType(id=new_episode.id, title=new_episode.title, podcast_id=new_episode.podcast_id, isPlayed=False)
         
 
 
     @strawberry.mutation
-    def mark_episod_played(self, episod_id: int) -> EpisodType:
+    def mark_episode_played(self, episode_id: int) -> EpisodeType:
         with Session(engine) as session:
-            episod = session.get(Episod, episod_id)
-            if not episod:
+            episode = session.get(Episode, episode_id)
+            if not episode:
                 raise ValueError("Episode not found")
-            episod.isPlayed = True
-            session.add(episod)
+            episode.isPlayed = True
+            session.add(episode)
             session.commit()
-            session.refresh(episod)
-            return EpisodType(
-                id=episod.id,
-                title=episod.title,
-                podcast_id=episod.podcast_id,
-                isPlayed=episod.isPlayed
+            session.refresh(episode)
+            return EpisodeType(
+                id=episode.id,
+                title=episode.title,
+                podcast_id=episode.podcast_id,
+                isPlayed=episode.isPlayed
             )
     
 
@@ -117,21 +117,21 @@ class Mutation:
             podcast = session.get(Podcast, podcast_id)
             if not podcast:
                 raise Exception("Podcast not found")
-            deleted_podcast = PodcastType(id=podcast.id, title=podcast.title, episods_list=podcast.episods_list)
+            deleted_podcast = PodcastType(id=podcast.id, title=podcast.title, episode_list=podcast.episode_list)
             session.delete(podcast)
             session.commit()
             return deleted_podcast
 
     @strawberry.mutation
-    def remove_episode(self, episode_id: int) -> EpisodType:
+    def remove_episode(self, episode_id: int) -> EpisodeType:
         with Session(engine) as session:
-            eposid = session.get(Episod, episode_id)
-            if not eposid:
-                raise Exception("Eposide not found")
-            deleted_eposide = EpisodType(id=eposid.id, title=eposid.title, isPlayed=eposid.isPlayed, podcast_id=eposid.podcast_id)
-            session.delete(eposid)
+            episode = session.get(Episode, episode_id)
+            if not episode:
+                raise Exception("Episode not found")
+            deleted_episode = EpisodeType(id=episode.id, title=episode.title, isPlayed=episode.isPlayed, podcast_id=episode.podcast_id)
+            session.delete(episode)
             session.commit()
-            return deleted_eposide
+            return deleted_episode
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
 app = Flask(__name__)
